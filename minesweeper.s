@@ -156,10 +156,12 @@ reveal_grid:
         #   -> body
         #   -> [epilogue]
 
+
+
 reveal_grid__prologue:
         addiu   $sp, $sp, -4
         sw      $ra, 0($sp)
-        
+
         la      $t0, grid       #  contains the start address of the array 'grid'. stored as bytes, alignment 2.
         li      $t1, 0          #  i = 0; ROW INDEX  Row Counter
         li      $t2, 0          #  j = 0; COLUMN INDEX  Column Counter
@@ -169,6 +171,10 @@ reveal_grid__start:
 
 reveal_grid__body:
         bgt     $t2, N_CELLS, ending_of_loop # if (j > (N_ROWS * N_COLS)) goto ending of the loop
+
+        # 2d array addressing calculation from my tutors material.
+        # https://gist.github.com/Qantas94Heavy/b9df4c886a384e9372426ed259a0108a
+        # thank you Karl =).
 
         #calculate position
         li      $t3, N_COLS
@@ -183,9 +189,9 @@ reveal_grid__body:
         add     $t5, $t2, $t0   # start + (row * N_COLS + col) * size  # uses the value of (j + grid start address).
 
         # load and change the element at the address. 
-        lb      $t6, ($t5)              # load the byte from the address
+        lb      $t6, 0($t5)              # load the byte from the address
         ori     $t6, $t6, IS_RVLD_MASK          # OR'd with the revealed mask definition of 0x20.
-        sb      $t6, ($t5)              # store the modified value into the address. 
+        sb      $t6, 0($t5)              # store the modified value into the address. 
         
         addi    $t2, $t2, 1     # j++;
 
@@ -225,25 +231,34 @@ place_bombs:
         #   -> [epilogue]
 
 place_bombs__prologue:
-        addiu   $sp, $sp, -4
+        addiu   $sp, $sp, -12
         sw      $ra, 0($sp)
 
+        # saving the S registers onto the stack
+        sw      $s4, 4($sp)
+        sw      $s5, 8($sp)
+
+        move    $s4, $a0        # bad_row
+        move    $s5, $a1        # bad_col
+
+        li      $s6, 0                  # counter for the loop. 
+        lb      $s1, bomb_count         # count of the bomb total.
+
 place_bombs__body:
+        bge             $s6, $s1, place_bombs__epilogue         # if (counter >= bomb_count) goto end of place bombs
 
-        # TODO: convert this C function to MIPS
+        jal             place_single_bomb       # Jump and Link to the place_single_bomb function
 
-        # void place_bombs(int bad_row, int bad_col) {
-        #   for (int i = 0; i < total_bombs; i++) {
-        #     place_single_bomb(bad_row, bad_col);
-        #   }
-        # }
+        move            $a0, $s4                #restoring the $a0, after the Place_Single_Bomb function has clobbered it. 
+        move            $a1, $s5                #restoring the $a1, after the is_bad_cell (called by the BOMB function) function has clobbered it. 
 
-        # PUT YOUR CODE FOR place_bombs HERE
+        addi            $s6, $s6, 1             # i++; increment of the loop counter
 
+        j		place_bombs__body	# jump to place_bombs__body
 
 place_bombs__epilogue:
         lw      $ra, 0($sp)
-        addiu   $sp, $sp, 4
+        addiu   $sp, $sp, 12
 
         jr      $ra
 
