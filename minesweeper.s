@@ -291,31 +291,72 @@ mark_cell__prologue:
         addiu   $sp, $sp, -4
         sw      $ra, 0($sp)
 
+        la      $t0, grid
+
+        move      $s1, $a0      #row
+        move      $s2, $a1      #column
+
 mark_cell__body:
+#________________________________________________________
+        #calculates the address of the row & col position
+        li      $t3, N_COLS
+        mul     $t3, $t3, $s1
+        add     $t3, $t3, $s2
 
-        # TODO: convert this C function to MIPS
+        li      $t4, 1
+        mul     $t4, $t4, $t3
+        add     $t5, $t4, $t0
+        lb      $t6, 0($t5)     # $t6 stores the value of the address.  grid[row][col].
 
-        # void mark_cell(int row, int col) {
-        #   if (grid[row][col] & IS_RVLD_MASK) {
-        #     if (debug_mode) {
-        #       return;
-        #     }
-        #     printf("Cannot mark a revealed cell.\n");
-        #     return;
-        #   }
-        #   // Unmark a marked cell.
-        #   if (grid[row][col] & IS_MRKD_MASK) {
-        #     grid[row][col] &= ~IS_MRKD_MASK;
-        #     bomb_count++;
-        #     // Mark a cell.
-        #   } else {
-        #     grid[row][col] |= IS_MRKD_MASK;
-        #     bomb_count--;
-        #   }
-        # }
+#_____________________________________________________________
+        # if (grid[row][col] & IS_MRKED_MASK) print(cannot mark a revealed cell) return;
+        # checks if the cell has already been revealed. 
+        and    $t7, $t6, IS_RVLD_MASK           # t7 = t6(value of cell) & 0x20.
+        beq     $t7, 1, already_revealed__cell     # if (t7 == 1) goto already revealed, the cell has already been revealed. 
 
-        # PUT YOUR CODE FOR mark_cell HERE
+#_____________________________________________________________
+        #       if (debug_mode) return 
+        # check if debug mode has been enabled. 
+        la     $t1, debug_mode          # loads the debug_mode address label
+        lw     $a0, 0($t1)              # loads the word of debug_mode
+        # debgug_mode ($a0) == 1 when on and == 0 when off
+        beq     $a0, 1, mark_cell__epilogue     # if (debug_mode == 1), goto end 
 
+#_________________________________________________
+        # if grid[row][col] & IS_MRKD_MASK) goto unmark_cell
+        # check if the cell has already been marked, and unmarks it, adds to the bomb_counter. 
+        and     $t7, $t6, IS_MRKD_MASK          # t7 = cell value & IS_MRKED_MASK
+        beq     $t7, 64, unmark_cell
+    
+#______________________________________________________________
+        # ELSE marks the value the vaule to be marked. Bomb_count--;
+        ori     $t6, $t6, IS_MRKD_MASK
+        sb      $t6, 0($t5)
+        #need to decrease the bomb_counter when marking a cell. 
+        la      $t1, bomb_count
+        lw      $t2, 0($t1)
+        addi    $t2, $t2, -1
+        sw      $t2, 0($t1)
+
+        jal     mark_cell__epilogue
+#_______________________________________________________
+
+already_revealed__cell:
+        la     $a0, mark_error
+        li      $v0, 4
+        syscall
+
+unmark_cell:
+        # grid[row][col] &= ~IS_MRKD_MASK; bomb_count++;
+        xori     $t6, $t6, IS_MRKD_MASK
+        and     $t6, $t6, IS_MRKD_MASK
+        sb      $t6, 0($t5)
+
+        # increase the number of bomb_count
+        la      $t1, bomb_count
+        lw      $t2, 0($t1)
+        addi    $t2, $t2, 1
+        sw      $t2, 0($t1)
 
 mark_cell__epilogue:
         lw      $ra, 0($sp)
