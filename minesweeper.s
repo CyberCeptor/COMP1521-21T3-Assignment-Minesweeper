@@ -159,20 +159,16 @@ reveal_grid:
 reveal_grid__prologue:
         addiu   $sp, $sp, -4
         sw      $ra, 0($sp)
+        
+        la      $t0, grid       #  contains the start address of the array 'grid'. stored as bytes, alignment 2.
+        li      $t1, 0          #  i = 0; ROW INDEX  Row Counter
+        li      $t2, 0          #  j = 0; COLUMN INDEX  Column Counter
 
-reveal_setup:
-        la      $t0, grid       # contains the start address of the array 'grid'
-        li      $t1, 0          # i = 0; ROW INDEX
-
+reveal_grid__start:
+        bgt     $t1, N_ROWS, reveal_grid__epilogue    # if (i > 10) goto end
 
 reveal_grid__body:
-        bge     $t1, N_ROWS, reveal_grid__epilogue    # if (i > 10) goto end
-        li      $t2, 0          #  j = 0; COLUMN INDEX resets j for the next iteration.
-
-
-inner_reveal_loop:
-        move    $t5, $t2
-        bge     $t2, N_CELLS, ending_of_loop # if (j > 10) goto ending of the outer loop
+        bgt     $t2, N_CELLS, ending_of_loop # if (j > (N_ROWS * N_COLS)) goto ending of the loop
 
         #calculate position
         li      $t3, N_COLS
@@ -180,48 +176,30 @@ inner_reveal_loop:
         add     $t3, $t3, $t2   # row * N_COLS + col
 
         #calculate the offset
-        li      $t4, 1 
+        li      $t4, 1          # 1 because the grid is stored in bytes, not words, so a single byte is needed.
         mul     $t4, $t4, $t3   # (row * N_COLS + col) * size
 
         # calculate the final address
-        add     $t5, $t5, $t0   # start + (row * N_COLS + col) * size
+        add     $t5, $t2, $t0   # start + (row * N_COLS + col) * size  # uses the value of (j + grid start address).
 
-        # load and change element
-        lb      $t6, ($t5)
-        ori     $t6, $t6, IS_RVLD_MASK
-        sb      $t6, ($t5)     
+        # load and change the element at the address. 
+        lb      $t6, ($t5)              # load the byte from the address
+        ori     $t6, $t6, IS_RVLD_MASK          # OR'd with the revealed mask definition of 0x20.
+        sb      $t6, ($t5)              # store the modified value into the address. 
         
         addi    $t2, $t2, 1     # j++;
 
-        # TODO: convert this C function to MIPS [subset 0]
-
-        # void reveal_grid(void) {
-        #   for (int row = 0; row < N_ROWS; row++) {
-        #     for (int col = 0; col < N_COLS; col++) {
-        #       grid[row][col] |= IS_RVLD_MASK;
-        #     }
-        #   }
-        # }
-
-        # PUT YOUR CODE FOR reveal_grid HERE
-        
-
-        j       inner_reveal_loop
+        j       reveal_grid__body
 
 ending_of_loop:
         addi    $t1, $t1, 1     # i++;
-
-        j       reveal_grid__body
+        j       reveal_grid__start
 
 reveal_grid__epilogue:
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 4
 
         jr      $ra
-
-				# jump to target
-
-
 
 ########################################################################
 # .TEXT <place_bombs>
