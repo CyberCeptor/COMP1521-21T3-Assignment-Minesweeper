@@ -393,6 +393,8 @@ reveal_cell__prologue:
         addiu   $sp, $sp, -4
         sw      $ra, 0($sp)
 
+        la      $t0, grid
+
 reveal_cell__body:
 
         # TODO: convert this C function to MIPS
@@ -434,6 +436,96 @@ reveal_cell__body:
         # }
 
         # PUT YOUR CODE FOR reveal_cell HERE
+
+#________________________________________________________
+        #calculates the address and value of the row & col position in grid
+        move      $t1, $a0        # row
+        move      $t2, $a1        # col
+
+        li      $t3, N_COLS
+        mul     $t3, $t3, $t1
+        add     $t3, $t3, $t2
+
+        add     $t5, $t5, $t0
+
+        lb      $t6, ($t5) 
+
+
+
+
+#___________________________________________________________________
+        andi    $t7, $t6, IS_MRKD_MASK
+        beq     $t7, 0, cant_reveal__marked___cell
+        
+
+
+#________________________________________________________
+        # if (grid[row][col] & IS_MRKED_MASK) print(cannot mark a revealed cell) return;
+        # checks if the cell has already been revealed. 
+        andi    $t7, $t6, IS_RVLD_MASK           # t7 = t6(value of cell) & 0x20.
+        beq     $t7, 1, reveal_cell_already_revealed # if (t7 == 1) goto already revealed, the cell has already been revealed. 
+
+
+
+#________________________________________________________
+        # if (grid[row][col] & IS_BOMB_MASK) { game_state = LOSE; }
+        andi     $t7, $t6, IS_BOMB_MASK
+        beq     $t7, 1, game_state__lose
+
+
+        
+#________________________________________________________
+        # if ((grid[row][col] & VALUE_MASK) == 0) { clear_surroundings(row, col);
+        andi    $t7, $t6, VALUE_MASK
+        beq     $t7, 0, clear_surroundings
+#________________________________________________________
+        # else { grid[row][col] |= IS_RVLD_MASK;
+        # if (game_state |= LOSE) {
+                # cells_left--; } }
+
+        jal		reveal_cell__epilogue
+        
+
+
+game_state__lose:
+
+        li      $t1, LOSE            #
+        sw      $t1, game_state         # game_state = PLAYING;
+                                        #
+        lw      $t1, total_bombs        #
+        sw      $t1, bomb_count         # bomb_count = total_bombs;
+                                        #
+        li      $t2, N_CELLS            #
+        sub     $t2, $t2, $t1           #
+        sw      $t2, cells_left         # cells_left = N_CELLS - total_bombs
+
+        j	        reveal_cell__epilogue
+
+
+reveal_cell_already_revealed:
+
+        # if (debug_mode) return 
+        la     $t1, debug_mode          # loads the debug_mode address label
+        lw     $a0, ($t1)              # loads the word of debug_mode
+        # debgug_mode ($a0) == 1 when on and == 0 when off
+        beq     $a0, 1, mark_cell__epilogue     # if (debug_mode == 1), goto end 
+
+        la      $a0, mark_error
+        li      $v0, 4
+        syscall
+        j		reveal_cell__epilogue				# jump to reveal_cell_epilogue
+        
+cant_reveal__marked___cell:
+        # if (debug_mode) return 
+        la     $t1, debug_mode          # loads the debug_mode address label
+        lw     $a0, ($t1)              # loads the word of debug_mode
+        # debgug_mode ($a0) == 1 when on and == 0 when off
+        beq     $a0, 1, mark_cell__epilogue     # if (debug_mode == 1), goto end 
+
+        la      $a0, reveal_error
+        li      $v0, 4
+        syscall
+        j		reveal_cell__epilogue				# jump to reveal_cell_epilogue
 
 
 reveal_cell__epilogue:
