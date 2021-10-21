@@ -233,30 +233,29 @@ place_bombs:
 place_bombs__prologue:
         addiu   $sp, $sp, -12
         sw      $ra, 0($sp)
+        sw      $a0, 4($sp)
+        sw      $a1, 8($sp)
 
-        # saving the S registers onto the stack
-        sw      $s4, 4($sp)
-        sw      $s5, 8($sp)
 
-        move    $s4, $a0        # bad_row
-        move    $s5, $a1        # bad_col
-
+        lw      $s5, bomb_count         # count of the bomb total.
         li      $s6, 0                  # counter for the loop. 
-        lb      $s1, bomb_count         # count of the bomb total.
+
 
 place_bombs__body:
-        bge             $s6, $s1, place_bombs__epilogue         # if (counter >= bomb_count) goto end of place bombs
+        bge              $s6, $s5, place_bombs__epilogue         # if (counter >= bomb_count) goto end of place bombs
 
-        jal             place_single_bomb       # Jump and Link to the place_single_bomb function
+        jal              place_single_bomb       # Jump and Link to the place_single_bomb function
 
-        move            $a0, $s4                #restoring the $a0, after the Place_Single_Bomb function has clobbered it. 
-        move            $a1, $s5                #restoring the $a1, after the is_bad_cell (called by the BOMB function) function has clobbered it. 
+        lw               $a0, 4($sp)               #restoring the $a0, after the Place_Single_Bomb function has clobbered it. 
+        lw               $a1, 8($sp)              #restoring the $a1, after the is_bad_cell (called by the BOMB function) function has clobbered it. 
+ 
+        addi             $s6, $s6, 1             # i++; increment of the loop counter
 
-        addi            $s6, $s6, 1             # i++; increment of the loop counter
-
-        j		place_bombs__body	# jump to place_bombs__body
+        j	         place_bombs__body	# jump to place_bombs__body
 
 place_bombs__epilogue:
+        lw      $a1, 8($sp)
+        lw      $a0, 4($sp)   
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 12
 
@@ -288,39 +287,37 @@ mark_cell:
         #   -> [epilogue]
 
 mark_cell__prologue:
-        addiu   $sp, $sp, -4
+        addiu   $sp, $sp, -12
         sw      $ra, 0($sp)
+        sw      $a0, 4($sp)
+        sw      $a1, 8($sp)
 
         la      $t0, grid
-
-        move      $s1, $a0      #row
-        move      $s2, $a1      #column
 
 mark_cell__body:
 #________________________________________________________
         #calculates the address of the row & col position
         li      $t3, N_COLS
-        mul     $t3, $t3, $s1
-        add     $t3, $t3, $s2
+        mul     $t3, $t3, $a0
+        add     $t3, $t3, $a1
 
         li      $t4, 1
         mul     $t4, $t4, $t3
         add     $t5, $t4, $t0
+
         lb      $t6, 0($t5)     # $t6 stores the value of the address.  grid[row][col].
+
+
+        # check if debug mode has been enabled. 
+        la     $t1, debug_mode          # loads the debug_mode address label
+        lw     $t8, 0($t1)              # loads the word of debug_mode
+        # debgug_mode ($a0) == 1 when on and == 0 when off
 
 #_____________________________________________________________
         # if (grid[row][col] & IS_MRKED_MASK) print(cannot mark a revealed cell) return;
         # checks if the cell has already been revealed. 
         and    $t7, $t6, IS_RVLD_MASK           # t7 = t6(value of cell) & 0x20.
-        beq     $t7, 1, already_revealed__cell     # if (t7 == 1) goto already revealed, the cell has already been revealed. 
-
-#_____________________________________________________________
-        #       if (debug_mode) return 
-        # check if debug mode has been enabled. 
-        la     $t1, debug_mode          # loads the debug_mode address label
-        lw     $a0, 0($t1)              # loads the word of debug_mode
-        # debgug_mode ($a0) == 1 when on and == 0 when off
-        beq     $a0, 1, mark_cell__epilogue     # if (debug_mode == 1), goto end 
+        beq    $t7, 32, already_revealed__cell     # if (t7 == 1) goto already revealed, the cell has already been revealed. 
 
 #_________________________________________________
         # if grid[row][col] & IS_MRKD_MASK) goto unmark_cell
@@ -330,7 +327,8 @@ mark_cell__body:
     
 #______________________________________________________________
         # ELSE marks the value the vaule to be marked. Bomb_count--;
-        ori     $t6, $t6, IS_MRKD_MASK
+        li      $t7, IS_MRKD_MASK
+        or      $t6, $t6, $t7
         sb      $t6, 0($t5)
         #need to decrease the bomb_counter when marking a cell. 
         la      $t1, bomb_count
@@ -342,15 +340,19 @@ mark_cell__body:
 #_______________________________________________________
 
 already_revealed__cell:
-        la     $a0, mark_error
+        beq     $t8, 1, mark_cell__epilogue     # if (debug_mode == 1), goto end 
+        la      $a0, mark_error
         li      $v0, 4
         syscall
+        j		mark_cell__epilogue				# jump to mark_cell__epilogue
+        
 
 unmark_cell:
         # grid[row][col] &= ~IS_MRKD_MASK; bomb_count++;
-        xori     $t6, $t6, IS_MRKD_MASK
-        and     $t6, $t6, IS_MRKD_MASK
-        sb      $t6, 0($t5)
+        la      $t7, IS_MRKD_MASK
+        not     $t7, $t7   # OR's the MRKD_MASK
+        and     $t6, $t6, $t7           # AND's the grid value with the OR'd mask
+        sb      $t6, ($t5)
 
         # increase the number of bomb_count
         la      $t1, bomb_count
@@ -358,9 +360,13 @@ unmark_cell:
         addi    $t2, $t2, 1
         sw      $t2, 0($t1)
 
+        jal     mark_cell__epilogue
+
 mark_cell__epilogue:
+        lw      $a1, 8($sp)
+        lw	$a0, 4($sp)
         lw      $ra, 0($sp)
-        addiu   $sp, $sp, 4
+        addiu   $sp, $sp, 12
 
         jr      $ra
 
@@ -390,125 +396,108 @@ reveal_cell:
         #   -> [epilogue]
 
 reveal_cell__prologue:
-        addiu   $sp, $sp, -4
+        addiu   $sp, $sp, -12
         sw      $ra, 0($sp)
+        sw      $a0, 4($sp)
+        sw      $a1, 8($sp)
 
-        la      $t0, grid
+        la      $s7, grid
 
 reveal_cell__body:
-
-        # TODO: convert this C function to MIPS
-
-        # void reveal_cell(int row, int col) {
-        #   // Cannot reveal a cell that is currently marked.
-        #   if (grid[row][col] & IS_MRKD_MASK) {
-        #     if (debug_mode) {
-        #       return;
-        #     }
-        #     printf("Cannot reveal a marked cell.\n");
-        #     return;
-        #   }
-        #   if (grid[row][col] & IS_RVLD_MASK) {
-        #     if (debug_mode) {
-        #       return;
-        #     }
-        #     printf("Cell is already revealed.\n");
-        #     return;
-        #   }
-        #   // Trigger game over if the cell is a bomb.
-        #   if (grid[row][col] & IS_BOMB_MASK) {
-        #     game_state = LOSE;
-        #   }
-        #   // Reveal the cell.
-        #   if ((grid[row][col] & VALUE_MASK) == 0) {
-        #     clear_surroundings(row, col);
-        #   } else {
-        #     grid[row][col] |= IS_RVLD_MASK;
-
-        #     if (game_state != LOSE) {
-        #       cells_left--;
-        #     }
-        #   }
-
-        #   if (cells_left == 0) {
-        #     game_state = WIN;
-        #   }
-        # }
-
-        # PUT YOUR CODE FOR reveal_cell HERE
-
 #________________________________________________________
         #calculates the address and value of the row & col position in grid
-        move      $t1, $a0        # row
-        move      $t2, $a1        # col
+        move    $s5, $a0        #row
+        move    $s6, $a1        #col
 
+         #calculates the address of the row & col position
         li      $t3, N_COLS
-        mul     $t3, $t3, $t1
-        add     $t3, $t3, $t2
+        mul     $t3, $t3, $s5
+        add     $t3, $t3, $s6
+        li      $t4, 1
+        mul     $t4, $t4, $t3
+        add     $t5, $t4, $s7
+        lb      $t6, 0($t5)     # $t6 stores the value of the address.  grid[row][col].
 
-        add     $t5, $t5, $t0
-
-        lb      $t6, ($t5) 
-
-
-
+        # calculating the debug_mode value 1 == on, 0 == off
+       # if (debug_mode) return 
+        la     $t1, debug_mode          # loads the debug_mode address label
+        lw     $t8, ($t1)              # loads the word of debug_mode
+        # debgug_mode ($a0) == 1 when on and == 0 when off
 
 #___________________________________________________________________
+        # if (grid[row][col] & IS_MRKD_MASK)
         andi    $t7, $t6, IS_MRKD_MASK
-        beq     $t7, 0, cant_reveal__marked___cell
-        
-
-
+        beq     $t7, 64, cant_reveal__marked___cell
 #________________________________________________________
-        # if (grid[row][col] & IS_MRKED_MASK) print(cannot mark a revealed cell) return;
-        # checks if the cell has already been revealed. 
+        # if (grid[row][col] & IS_MRKED_MASK)         # checks if the cell has already been revealed. 
         andi    $t7, $t6, IS_RVLD_MASK           # t7 = t6(value of cell) & 0x20.
-        beq     $t7, 1, reveal_cell_already_revealed # if (t7 == 1) goto already revealed, the cell has already been revealed. 
-
-
+        beq     $t7, 32, reveal_cell_already_revealed # if (t7 == 1) goto already revealed, the cell has already been revealed. 
 
 #________________________________________________________
         # if (grid[row][col] & IS_BOMB_MASK) { game_state = LOSE; }
-        andi     $t7, $t6, IS_BOMB_MASK
-        beq     $t7, 1, game_state__lose
+        andi    $t7, $t6, IS_BOMB_MASK
+        beq     $t7, 16, game_state__lose
 
-
-        
 #________________________________________________________
         # if ((grid[row][col] & VALUE_MASK) == 0) { clear_surroundings(row, col);
         andi    $t7, $t6, VALUE_MASK
-        beq     $t7, 0, clear_surroundings
-#________________________________________________________
+        beq     $t7, 0, call_clear__surroundings
+        
+        j       else_statement          # if (grid[row][col] != 0) goto else. 
+
+
+        lw      $t1, cells_left
+        beq     $t1, 0, game_state__won
+
+        j		reveal_cell__epilogue
+
+call_clear__surroundings:
+        jal     clear_surroundings
+        j	reveal_cell__epilogue			
+        
+else_statement:
         # else { grid[row][col] |= IS_RVLD_MASK;
         # if (game_state |= LOSE) {
-                # cells_left--; } }
+        # cells_left--; } }
+        ori     $t7, $t6, IS_RVLD_MASK
 
-        jal		reveal_cell__epilogue
+        move    $a0, $t7
+        li      $v0, 1
+        syscall
+
+        sb      $t7, 0($t5)     # store the new value into the grid. 
+        # if (game_state != LOSE) { cells_left--;)
+        lw      $t7, game_state
+        li      $t8, LOSE
+        bne     $t7, $t8, lower_cell__count
+
+        jr		$ra					# jump to $ra
         
 
 
+lower_cell__count:
+        lw      $t1, cells_left
+        addi    $t1, $t1, -1
+        sw      $t1, cells_left
+
+        j		reveal_cell__epilogue				# jump to reveal_cell_epilogue
+        
+game_state__won:
+        li      $t1, WIN
+        sw      $t1, game_state
+        j	reveal_cell__epilogue				# jump to reveal_cell__epilogue
+        
+
 game_state__lose:
-
+        # reveals the bomb and only the bomb
+        ori     $t6, $t6, IS_RVLD_MASK
+        sb      $t6, ($t5)  
         li      $t1, LOSE            #
-        sw      $t1, game_state         # game_state = PLAYING;
-                                        #
-        lw      $t1, total_bombs        #
-        sw      $t1, bomb_count         # bomb_count = total_bombs;
-                                        #
-        li      $t2, N_CELLS            #
-        sub     $t2, $t2, $t1           #
-        sw      $t2, cells_left         # cells_left = N_CELLS - total_bombs
-
-        j	        reveal_cell__epilogue
-
+        sw      $t1, game_state         # game_state = LOSE;
+        j     reveal_cell__epilogue
 
 reveal_cell_already_revealed:
-
-        # if (debug_mode) return 
-        la     $t1, debug_mode          # loads the debug_mode address label
-        lw     $a0, ($t1)              # loads the word of debug_mode
-        # debgug_mode ($a0) == 1 when on and == 0 when off
-        beq     $a0, 1, mark_cell__epilogue     # if (debug_mode == 1), goto end 
+        beq     $t8, 1, reveal_cell__epilogue     # if (debug_mode == 1), goto end (dont print error)
 
         la      $a0, mark_error
         li      $v0, 4
@@ -516,12 +505,7 @@ reveal_cell_already_revealed:
         j		reveal_cell__epilogue				# jump to reveal_cell_epilogue
         
 cant_reveal__marked___cell:
-        # if (debug_mode) return 
-        la     $t1, debug_mode          # loads the debug_mode address label
-        lw     $a0, ($t1)              # loads the word of debug_mode
-        # debgug_mode ($a0) == 1 when on and == 0 when off
-        beq     $a0, 1, mark_cell__epilogue     # if (debug_mode == 1), goto end 
-
+        beq     $t8, 1, reveal_cell__epilogue     # if (debug_mode == 1), goto end (dont print error)
         la      $a0, reveal_error
         li      $v0, 4
         syscall
@@ -529,8 +513,10 @@ cant_reveal__marked___cell:
 
 
 reveal_cell__epilogue:
+        lw      $a1, 8($sp)
+        lw      $a0, 4($sp)
         lw      $ra, 0($sp)
-        addiu   $sp, $sp, 4
+        addiu   $sp, $sp, 12
 
         jr      $ra
 
@@ -559,51 +545,116 @@ clear_surroundings:
         #   -> body
         #   -> [epilogue]
 
+
+
 clear_surroundings__prologue:
-        addiu   $sp, $sp, -4
+        addiu   $sp, $sp, -12
         sw      $ra, 0($sp)
+        sw      $a0, 4($sp)     # row
+        sw      $a1, 8($sp)     # col
+
+        la      $s7, grid
 
 clear_surroundings__body:
+       #calculates the address of the row & col position
+        li      $t3, N_COLS
+        mul     $t3, $t3, $a0
+        add     $t3, $t3, $a1
+        li      $t4, 1
+        mul     $t4, $t4, $t3
+        add     $t5, $t4, $s7
+        lb      $t6, 0($t5)     # $t6 stores the value of the address.  grid[row][col].
 
-        # TODO: convert this C function to MIPS
 
-        # void clear_surroundings(int row, int col) {
-        #   if (row < 0 || row >= N_ROWS || col < 0 || col >= N_COLS) {
-        #     return;
-        #   }
-        #   if (grid[row][col] & IS_RVLD_MASK) {
-        #     return;
-        #   }
-        #   // Reveal the cell.
-        #   grid[row][col] |= IS_RVLD_MASK;
-        #   cells_left--;
-        #
-        #   // Unmark the cell if it was marked.
-        #   grid[row][col] &= ~IS_MRKD_MASK;
-        #
-        #   // Stop revealing once a numbered cell is reached.
-        #   if (grid[row][col] & VALUE_MASK) {
-        #     return;
-        #   }
-        #
-        #   // Recurse to the surrounding cells in the grid.
-        #   clear_surroundings(row - 1, col);
-        #   clear_surroundings(row - 1, col - 1);
-        #   clear_surroundings(row - 1, col + 1);
-        #   clear_surroundings(row, col - 1);
-        #   clear_surroundings(row, col + 1);
-        #   clear_surroundings(row + 1, col - 1);
-        #   clear_surroundings(row + 1, col);
-        #   clear_surroundings(row + 1, col + 1);
-        # }
+        # BASE CASES
+#_____________________________________________________________________
+#  if (row < 0 || row >= N_ROWS || col < 0 || col >= N_COLS) {
+   # return;
+        blt     $a0, 0, clear_surroundings__epilogue #if (row < 0) goto end
+        li      $t3, N_ROWS
+        bge     $a0, $t3, clear_surroundings__epilogue   # if (row >= N_ROWS) goto end
+        blt     $a1, 0, clear_surroundings__epilogue   # if (col < 0) goto end
+        li      $t3, N_COLS
+        bge     $a1, $t3, clear_surroundings__epilogue        # if (col >= N_COLS) goto end
+#_____________________________________________________________________
+        # if (grid[row][col] & IS_RVLD_MASK) {
+                # return;
+        andi    $t3, $t6, IS_RVLD_MASK
+        bne     $t3, 0, clear_surroundings__epilogue # if t3 doesnt equal 0, then it is on a hyphen '-' or a asterisks '*'.
+#_____________________________________________________________________
+        # reveals the cell
+        li      $t1, IS_RVLD_MASK
+        or      $t6, $t6, IS_RVLD_MASK
+        bge     $t6, 42, clear_surroundings__epilogue   # if the value equals 42 (it hit a *) dont reveal the cell
+        sb      $t6, 0($t5)
+#_____________________________________________________________________
+        # reduces the cell count
+        lw      $t1, cells_left
+        addi    $t1, $t1, -1
+        sw      $t1, cells_left
+#_____________________________________________________________________
+              # grid[row][col] &= ~IS_MRKD_MASK;
 
-        # PUT YOUR CODE FOR clear_surroundings HERE
+        la      $t7, IS_MRKD_MASK
+        not     $t7, $t7   # NOT's the MRKD_MASK
+        and     $t6, $t6, $t7           # AND's the grid value with the OR'd mask
+        
+        sb      $t6, ($t5)              
+#_____________________________________________________________________
+        andi    $t7, $t6, VALUE_MASK
+        bne     $t7, 0, clear_surroundings__epilogue # if grid[][] & 0x0F (15) doesnt == 0, then it has hit a number, so stop
+#_____________________________________________________________________
 
-clear_surroundings__epilogue:
-        lw      $ra, 0($sp)
-        addiu   $sp, $sp, 4
+    #    jal     clear_surroundings__epilogue
+
+        
+        # RECURSIVE CALLS
+
+        addi    $a0, $a0, 1
+        jal     clear_surroundings
+
+        addi    $a0, $a0, -2
+        jal     clear_surroundings
+
+
+
+        addi    $a0, $a0, -1            #   clear_surroundings(row - 1, col);
+        jal     clear_surroundings
+
+        addi    $a1, $a1, -1
+        jal     clear_surroundings      #   clear_surroundings(row - 1, col - 1);
+
+        addi    $a1, $a1, 2
+        jal     clear_surroundings      #   clear_surroundings(row - 1, col + 1);
+
+        addi    $a0, $a0, 1
+        addi    $a1, $a1, -2        
+        jal     clear_surroundings       #  clear_surroundings(row, col - 1);
+
+        addi    $a1, $a1, 2
+        jal     clear_surroundings      #   clear_surroundings(row, col + 1);
+
+
+
+        addi    $a0, $a0, 1
+        addi    $a1, $a1, -2
+        jal     clear_surroundings      #   clear_surroundings(row + 1, col - 1);
+
+       addi    $a1, $a1, 1             # bring col back to normal
+        jal     clear_surroundings      #   clear_surroundings(row + 1, col);
+
+        addi    $a1, $a1, 1             
+        jal     clear_surroundings      #    clear_surroundings(row + 1, col + 1);
+
+        j       clear_surroundings__epilogue
+
+
+clear_surroundings__epilogue:   #finish
+        lw      $a1, 8($sp)
+        lw      $a0, 4($sp)
+        lw      $ra, 0($sp)     # read registers from the stack
+        addiu   $sp, $sp, 12     # bring back the stack pointer
         jr      $ra
-
 
 
 ########################################################################
