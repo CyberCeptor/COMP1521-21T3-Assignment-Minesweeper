@@ -445,7 +445,6 @@ reveal_cell__body:
         
         j       else_statement          # if (grid[row][col] != 0) goto else. 
 
-
         lw      $t1, cells_left
         beq     $t1, 0, game_state__won
 
@@ -457,8 +456,7 @@ call_clear__surroundings:
         
 else_statement:
         # else { grid[row][col] |= IS_RVLD_MASK;
-        # if (game_state |= LOSE) {
-        # cells_left--; } }
+        # if (game_state |= LOSE) {  cells_left--; } }
         ori     $t7, $t6, IS_RVLD_MASK
         sb      $t7, 0($t5)     # store the new value into the grid. 
         # if (game_state != LOSE) { cells_left--;)
@@ -468,8 +466,6 @@ else_statement:
 
         jr		$ra					# jump to $ra
         
-
-
 lower_cell__count:
         lw      $t1, cells_left
         addi    $t1, $t1, -1
@@ -560,7 +556,6 @@ clear_surroundings__body:
         add     $t5, $t4, $s7
         lb      $t6, 0($t5)     # $t6 stores the value of the address.  grid[row][col].
 
-
         # BASE CASES
 #_____________________________________________________________________
 #  if (row < 0 || row >= N_ROWS || col < 0 || col >= N_COLS) {
@@ -593,23 +588,14 @@ clear_surroundings__body:
         la      $t7, IS_MRKD_MASK
         not     $t7, $t7   # NOT's the MRKD_MASK
         and     $t6, $t6, $t7           # AND's the grid value with the OR'd mask
-        
         sb      $t6, 0($t5)              
 #_____________________________________________________________________
-
-        
         andi    $t7, $t6, VALUE_MASK
         bne     $t7, 0, clear_surroundings__epilogue # if grid[][] & 0x0F (15) doesnt == 0, then it has hit a number, so stop
-        
 #_____________________________________________________________________
 
-
 recursive:
-    #    jal     clear_surroundings__epilogue
-
-        
         # RECURSIVE CALLS
-
 
         addi    $a0, $a0, -1            #   clear_surroundings(row - 1, col);
         jal     clear_surroundings
@@ -627,8 +613,6 @@ recursive:
         addi    $a1, $a1, 2
         jal     clear_surroundings      #   clear_surroundings(row, col + 1);
 
-
-
         addi    $a0, $a0, 1
         addi    $a1, $a1, -2
         jal     clear_surroundings      #   clear_surroundings(row + 1, col - 1);
@@ -641,8 +625,7 @@ recursive:
 
         j       clear_surroundings__epilogue
 
-
-clear_surroundings__epilogue:   #finish
+clear_surroundings__epilogue: 
         lw      $a1, 8($sp)
         lw      $a0, 4($sp)
         lw      $ra, 0($sp)     # read registers from the stack
@@ -701,7 +684,36 @@ update_highscore__body:
 
         # PUT YOUR CODE FOR update_highscore HERE
 
+
+        lb      $t1, high_score         # high_score.score
+
+        li      $t0, N_CELLS            #
+        lw      $t2, cells_left         #
+        sub     $t2, $t0, $t2           # score = N_CELLS - cells_left;
+
+        blt     $t1, $t2, new_high__score
+
+
+
+
+
+
+new_high__score:
+        sb      $t2, high_score         # save the new high score
+        la      $s5, high_score         # load the high_score address
+        la      $t1, user_name          # load the user_name address
+        
+# source for loop: https://stackoverflow.com/questions/39905397/how-to-load-string-line-by-line-in-mips-into-memory
+update_name__highscore:
+        lb      $t2, 0($t1)     # load the value (character) of the username
+        sb      $t2, 4($s5)     # store the character into high_score
+        addi    $s5, $s5, 1     # increment the address of high_score
+        addi    $t1, $t1, 1     # increment the address of the username
+        beq     $t2, $zero, update_highscore__epilogue  # if the value in username == 0, then it has hit '\0' the NULL character
+        j	update_name__highscore          # jump back to the loop to add the remaining characters.
+
 update_highscore__epilogue:
+        sb      $zero, 4($s5)           # adding the '\0' to the username. 
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 4
 
