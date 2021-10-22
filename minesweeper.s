@@ -429,7 +429,7 @@ reveal_cell__body:
         andi    $t7, $t6, IS_MRKD_MASK
         beq     $t7, 64, cant_reveal__marked___cell
 #________________________________________________________
-        # if (grid[row][col] & IS_MRKED_MASK)         # checks if the cell has already been revealed. 
+        # if (grid[row][col] & IS_RVLD_MASK)         # checks if the cell has already been revealed. 
         andi    $t7, $t6, IS_RVLD_MASK           # t7 = t6(value of cell) & 0x20.
         beq     $t7, 32, reveal_cell_already_revealed # if (t7 == 1) goto already revealed, the cell has already been revealed. 
 
@@ -460,11 +460,6 @@ else_statement:
         # if (game_state |= LOSE) {
         # cells_left--; } }
         ori     $t7, $t6, IS_RVLD_MASK
-
-        move    $a0, $t7
-        li      $v0, 1
-        syscall
-
         sb      $t7, 0($t5)     # store the new value into the grid. 
         # if (game_state != LOSE) { cells_left--;)
         lw      $t7, game_state
@@ -499,7 +494,7 @@ game_state__lose:
 reveal_cell_already_revealed:
         beq     $t8, 1, reveal_cell__epilogue     # if (debug_mode == 1), goto end (dont print error)
 
-        la      $a0, mark_error
+        la      $a0, already_revealed
         li      $v0, 4
         syscall
         j		reveal_cell__epilogue				# jump to reveal_cell_epilogue
@@ -599,23 +594,21 @@ clear_surroundings__body:
         not     $t7, $t7   # NOT's the MRKD_MASK
         and     $t6, $t6, $t7           # AND's the grid value with the OR'd mask
         
-        sb      $t6, ($t5)              
-#_____________________________________________________________________
-        andi    $t7, $t6, VALUE_MASK
-        bne     $t7, 0, clear_surroundings__epilogue # if grid[][] & 0x0F (15) doesnt == 0, then it has hit a number, so stop
+        sb      $t6, 0($t5)              
 #_____________________________________________________________________
 
+        
+        andi    $t7, $t6, VALUE_MASK
+        bne     $t7, 0, clear_surroundings__epilogue # if grid[][] & 0x0F (15) doesnt == 0, then it has hit a number, so stop
+        
+#_____________________________________________________________________
+
+
+recursive:
     #    jal     clear_surroundings__epilogue
 
         
         # RECURSIVE CALLS
-
-        addi    $a0, $a0, 1
-        jal     clear_surroundings
-
-        addi    $a0, $a0, -2
-        jal     clear_surroundings
-
 
 
         addi    $a0, $a0, -1            #   clear_surroundings(row - 1, col);
@@ -655,6 +648,8 @@ clear_surroundings__epilogue:   #finish
         lw      $ra, 0($sp)     # read registers from the stack
         addiu   $sp, $sp, 12     # bring back the stack pointer
         jr      $ra
+
+        
 
 
 ########################################################################
