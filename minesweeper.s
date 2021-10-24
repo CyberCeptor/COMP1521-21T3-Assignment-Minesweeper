@@ -443,16 +443,14 @@ reveal_cell__body:
         andi    $t7, $t6, VALUE_MASK
         beq     $t7, 0, call_clear__surroundings
         
-        j       else_statement          # if (grid[row][col] != 0) goto else. 
+        jal       else_statement          # if (grid[row][col] != 0) goto else. 
 
-        lw      $t1, cells_left
-        beq     $t1, 0, game_state__won
 
-        j		reveal_cell__epilogue
+        j		game_state_end
 
 call_clear__surroundings:
         jal     clear_surroundings
-        j	reveal_cell__epilogue			
+        j	game_state_end			
         
 else_statement:
         # else { grid[row][col] |= IS_RVLD_MASK;
@@ -471,21 +469,20 @@ lower_cell__count:
         addi    $t1, $t1, -1
         sw      $t1, cells_left
 
-        j		reveal_cell__epilogue				# jump to reveal_cell_epilogue
+        j		game_state_end				# jump to reveal_cell_epilogue
         
 game_state__won:
         li      $t1, WIN
         sw      $t1, game_state
-        j	reveal_cell__epilogue				# jump to reveal_cell__epilogue
+        j	reveal_cell__epilogue				# jump to reveal_cell_epilogue
         
-
 game_state__lose:
         # reveals the bomb and only the bomb
         ori     $t6, $t6, IS_RVLD_MASK
         sb      $t6, ($t5)  
         li      $t1, LOSE            #
         sw      $t1, game_state         # game_state = LOSE;
-        j     reveal_cell__epilogue
+        j       reveal_cell__epilogue
 
 reveal_cell_already_revealed:
         beq     $t8, 1, reveal_cell__epilogue     # if (debug_mode == 1), goto end (dont print error)
@@ -503,7 +500,12 @@ cant_reveal__marked___cell:
         j		reveal_cell__epilogue				# jump to reveal_cell_epilogue
 
 
+game_state_end:
+        lw      $t1, cells_left
+        beq     $t1, 0, game_state__won
+
 reveal_cell__epilogue:
+
         lw      $a1, 8($sp)
         lw      $a0, 4($sp)
         lw      $ra, 0($sp)
@@ -687,7 +689,7 @@ update_name__highscore:
         j	update_name__highscore          # jump back to the loop to add the remaining characters.
 
 update_highscore__epilogue:
-        sb      $zero, 4($s5)           # adding the '\0' to the username. 
+      #  sb      $zero, 4($s5)           # adding the '\0' to the username. 
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 4
 
@@ -796,7 +798,7 @@ print_loop:
 
         addi    $s6, $s6, 4
 
-        j     print_loop
+     #   j     print_loop
 
 
 print_scores__epilogue:
