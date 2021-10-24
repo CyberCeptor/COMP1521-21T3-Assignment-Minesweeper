@@ -663,45 +663,19 @@ update_highscore__prologue:
 
 update_highscore__body:
 
-        # TODO: convert this C function to MIPS
+        lb      $t1, high_score         # load high_score.score
+        # $a0 is the score as an int.
+        blt     $t1, $a0, new_high__score       # if high_score.score < score
 
-        # int update_highscore(int score) {
-        #   if (high_score.score < score) {
-        #     high_score.score = score;
-        #
-        #     // Copy over the string.
-        #     int i = 0;
-        #     while (user_name[i] != '\0') {
-        #       high_score.name[i] = user_name[i];
-        #       ++i;
-        #     }
-        #     high_score.name[i] = '\0';
-        #
-        #     return TRUE;
-        #   }
-        #   return FALSE;
-        # }
-
-        # PUT YOUR CODE FOR update_highscore HERE
-
-
-        lb      $t1, high_score         # high_score.score
-
-        li      $t0, N_CELLS            #
-        lw      $t2, cells_left         #
-        sub     $t2, $t0, $t2           # score = N_CELLS - cells_left;
-
-        blt     $t1, $t2, new_high__score
-
-
-
-
-
+        li      $v0, 0          # return FALSE, set to zero because its not a new high score
+        j	update_highscore__epilogue
+        
 
 new_high__score:
-        sb      $t2, high_score         # save the new high score
+        sb      $a0, high_score         # save the new high score
         la      $s5, high_score         # load the high_score address
         la      $t1, user_name          # load the user_name address
+        li      $v0, 1                  # return true, set to 1 as a new high score has been met. 
         
 # source for loop: https://stackoverflow.com/questions/39905397/how-to-load-string-line-by-line-in-mips-into-memory
 update_name__highscore:
@@ -765,8 +739,73 @@ print_scores__body:
 
         # PUT YOUR CODE FOR print_scores HERE
 
+        # printf("-------------SCORES-----------\n\n");
+        la      $a0, scores_msg
+        li      $v0, 4
+        syscall
+
+        la	$t1, MAX_SCORES
+        li      $t2, 0          # i = 0;
+        lw	$t3, high_score	# 
+        
+ 
+        la      $s6, high_score         #
+        
+
+print_loop:
+
+        bgt     $t2, $t1, print_scores__epilogue
+
+
+      #  lw      $a0, high_score        #
+      #  beq     $a0, -1, print_scores__epilogue
+
+
+        # printf("------------------------------\n");
+        la      $a0, scores_line_msg
+        li      $v0, 4
+        syscall
+
+        # print username:
+        la    $a0, scores_username_msg
+        li      $v0, 4
+        syscall
+
+        la      $a0, ($s6)         #
+        add     $a0, $a0, 4             #
+        li      $v0, 4                  #
+        syscall                         # printf("%s", high_score.name);
+
+        li   $a0, '\n'    # printf("%c", '\n');
+        li   $v0, 11
+        syscall
+
+        la      $a0, scores_score_msg
+        li      $v0, 4
+        syscall
+        
+        lw      $a0, high_score        #
+        li      $v0, 1                  #
+        syscall                         # printf("%d", high_score.score);
+
+        li   $a0, '\n'    # printf("%c", '\n');
+        li   $v0, 11
+        syscall
+
+        addi    $t2, $t2, 1
+
+        addi    $s6, $s6, 4
+
+        j     print_loop
+
 
 print_scores__epilogue:
+
+        # printf("------------------------------\n");
+        la      $a0, scores_line_msg
+        li      $v0, 4
+        syscall
+
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 4
 
