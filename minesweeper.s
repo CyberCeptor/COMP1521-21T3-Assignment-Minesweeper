@@ -745,60 +745,55 @@ print_scores__body:
         la      $a0, scores_msg
         li      $v0, 4
         syscall
-
-        la	$t1, MAX_SCORES
-        li      $t2, 0          # i = 0;
-        lw	$t3, high_score	# 
-        
  
-        la      $s6, high_score         #
+        li      $t2, 0          # i = 0;
+        li      $t1, 0          # offset = 0;
         
 
 print_loop:
-
-        bgt     $t2, $t1, print_scores__epilogue
-
-
-      #  lw      $a0, high_score        #
-      #  beq     $a0, -1, print_scores__epilogue
-
+        bgt     $t2, MAX_SCORES, print_scores__epilogue
+        lw     $t6, scores($t1)        #
+        beq    $t6, -1, print_scores__epilogue  # if curr.score == -1
 
         # printf("------------------------------\n");
         la      $a0, scores_line_msg
         li      $v0, 4
         syscall
 
-        # print username:
-        la    $a0, scores_username_msg
+        # print "USERNAME:"
+        la      $a0, scores_username_msg
         li      $v0, 4
         syscall
 
-        la      $a0, ($s6)         #
-        add     $a0, $a0, 4             #
+        add     $t5, $t1, 4     # calculating the offset
+
+        la      $a0, scores($t5)        #
         li      $v0, 4                  #
         syscall                         # printf("%s", high_score.name);
+
 
         li   $a0, '\n'    # printf("%c", '\n');
         li   $v0, 11
         syscall
 
+        # print "SCORE:"
         la      $a0, scores_score_msg
         li      $v0, 4
         syscall
         
-        lw      $a0, high_score        #
+        move    $a0, $t6        #
         li      $v0, 1                  #
         syscall                         # printf("%d", high_score.score);
+
 
         li   $a0, '\n'    # printf("%c", '\n');
         li   $v0, 11
         syscall
 
+        addi    $t1, $t1, USER_SCORE_SIZE
         addi    $t2, $t2, 1
 
-        addi    $s6, $s6, 4
-
-     #   j     print_loop
+        j     print_loop
 
 
 print_scores__epilogue:
