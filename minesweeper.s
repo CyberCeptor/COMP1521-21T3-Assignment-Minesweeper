@@ -674,7 +674,7 @@ update_highscore__body:
         
 
 new_high__score:
-        sb      $a0, high_score         # save the new high score
+        sw      $a0, high_score         # save the new high score
         la      $s5, high_score         # load the high_score address
         la      $t1, user_name          # load the user_name address
         li      $v0, 1                  # return true, set to 1 as a new high score has been met. 
@@ -722,86 +722,78 @@ print_scores__prologue:
         sw      $ra, 0($sp)
 
 print_scores__body:
-
-        # TODO: convert this C function to MIPS
-
-        # void print_scores(void) {
-        #   printf("-------------SCORES-----------\n\n");
-        #   for (int i = 0; i < MAX_SCORES; i++) {
-        #     struct UserScore curr = scores[i];
-        #     if (curr.score == -1) {
-        #       break;
-        #     }
-        #     printf("------------------------------\n");
-        #     printf("* USERNAME:\t%s\n", curr.name);
-        #     printf("* SCORE:\t%d\n", curr.score);
-        #   }
-        #   printf("------------------------------\n");
-        # }
-
-        # PUT YOUR CODE FOR print_scores HERE
-
         # printf("-------------SCORES-----------\n\n");
         la      $a0, scores_msg
         li      $v0, 4
         syscall
- 
-        li      $t2, 0          # i = 0;
-        li      $t1, 0          # offset = 0;
         
-
+        li      $t1, 0          # offset = 0;
+        li      $t2, 0          # i = 0;
+        
 print_loop:
-        bgt     $t2, MAX_SCORES, print_scores__epilogue
-        lw     $t6, scores($t1)        #
+        bgt    $t2, MAX_SCORES, print_scores__epilogue         # for (i > MAX_SCORES) goto end;
+        lw     $t6, scores($t1)        # struct UserScore curr = scores[i]; 
         beq    $t6, -1, print_scores__epilogue  # if curr.score == -1
 
-        # printf("------------------------------\n");
-        la      $a0, scores_line_msg
-        li      $v0, 4
-        syscall
+        jal     print_dotted__line
 
+        jal     print_username__banner
+
+        #       j = offset + 4. 
+        add     $t5, $t1, 4             # calculating the offset
+
+        la      $a0, scores($t5)        #
+        li      $v0, 4                  #
+        syscall                         # printf("%s", curr.name);
+
+        jal     print_new__line
+
+        jal     print_score__banner
+
+        move    $a0, $t6        #
+        li      $v0, 1                  #
+        syscall                         # printf("%d", curr.score);
+
+        jal     print_new__line
+
+        addi    $t1, $t1, USER_SCORE_SIZE       # adding to the offset by the size of the score
+        addi    $t2, $t2, 1                     # i++;
+
+        j     print_loop
+
+print_username__banner:
         # print "USERNAME:"
         la      $a0, scores_username_msg
         li      $v0, 4
         syscall
 
-        add     $t5, $t1, 4     # calculating the offset
+        jr      $ra
 
-        la      $a0, scores($t5)        #
-        li      $v0, 4                  #
-        syscall                         # printf("%s", high_score.name);
-
-
-        li   $a0, '\n'    # printf("%c", '\n');
-        li   $v0, 11
-        syscall
-
+print_score__banner:
         # print "SCORE:"
         la      $a0, scores_score_msg
         li      $v0, 4
         syscall
-        
-        move    $a0, $t6        #
-        li      $v0, 1                  #
-        syscall                         # printf("%d", high_score.score);
 
+        jr      $ra
 
+print_new__line:
         li   $a0, '\n'    # printf("%c", '\n');
         li   $v0, 11
         syscall
 
-        addi    $t1, $t1, USER_SCORE_SIZE
-        addi    $t2, $t2, 1
+        jr      $ra
 
-        j     print_loop
-
-
-print_scores__epilogue:
-
+print_dotted__line:
         # printf("------------------------------\n");
         la      $a0, scores_line_msg
         li      $v0, 4
         syscall
+
+        jr      $ra
+
+print_scores__epilogue:
+        jal     print_dotted__line
 
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 4
