@@ -245,7 +245,7 @@ place_bombs__body:
  
         addi    $s1, $s1, 1                                     # i++; increment of the loop counter
 
-        j	place_bombs__body	                        # jump to place_bombs__body
+        j       place_bombs__body                               # jump to place_bombs__body
 
 place_bombs__epilogue:
         lw      $s1, 16($sp)
@@ -334,7 +334,7 @@ mark_cell__already___revealed:
         li      $v0, 4
         syscall                                                 # printf("Cannot mark a revealed cell.\n");
 
-        j	mark_cell__epilogue	                        # jump to mark_cell__epilogue
+        j       mark_cell__epilogue                             # jump to mark_cell__epilogue
 
 mark_cell__unmark___cell:
         la      $t3, IS_MRKD_MASK                               # grid[row][col] &= ~IS_MRKD_MASK; bomb_count++;
@@ -354,7 +354,7 @@ mark_cell__epilogue:
         lw      $s1, 16($sp)
         lw      $s0, 12($sp)
         lw      $a1, 8($sp)
-        lw	$a0, 4($sp)
+        lw      $a0, 4($sp)
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 24
 
@@ -440,11 +440,11 @@ reveal_cell__body:
         
         jal     reveal_cell__else___statement                   # if (grid[row][col] != 0) goto else. 
 
-        j	reveal_cell__gamestate___end      
+        j       reveal_cell__gamestate___end      
 
 reveal_cell__clear___surroundings:
         jal     clear_surroundings                              # jumps to the clear_surroundins function.
-        j	reveal_cell__gamestate___end			# once cleared, goto end_state.
+        j       reveal_cell__gamestate___end                    # once cleared, goto end_state.
         
 reveal_cell__else___statement:
         # if (game_state |= LOSE) {  cells_left--; } }          # else { grid[row][col] |= IS_RVLD_MASK;
@@ -461,12 +461,12 @@ reveal_cell__lower___cellcount:
         addi    $t4, $t4, -1                                    # cells_left--;
         sw      $t4, cells_left                                 # store the new value in cells_left.
 
-        j       reveal_cell__gamestate___end			# jump to reveal_cell_epilogue
+        j       reveal_cell__gamestate___end                    # jump to reveal_cell_epilogue
         
 reveal_cell__game___state____won:
         li      $t4, WIN                                        # $t4 = WIN;
         sw      $t4, game_state                                 # game_state = WIN;
-        j	reveal_cell__epilogue			        # jump to reveal_cell_epilogue
+        j       reveal_cell__epilogue                           # jump to reveal_cell_epilogue
         
 reveal_cell__gamestate___lose:
         # reveals the bomb that caused the loss. Nothing else. 
@@ -482,7 +482,7 @@ reveal_cell__already___revealed:
         li      $v0, 4
         syscall                                                 # printf("Cell is already revealed.\n");
 
-        j       reveal_cell__epilogue		                # jump to reveal_cell_epilogue
+        j       reveal_cell__epilogue                           # jump to reveal_cell_epilogue
         
 reveal_cell__cell___marked:
         beq     $s3, 1, reveal_cell__epilogue                   # if (debug_mode == 1), goto end (dont print error)
@@ -490,7 +490,7 @@ reveal_cell__cell___marked:
         li      $v0, 4
         syscall                                                 # printf("Cannot reveal a marked cell.\n");
 
-        j	reveal_cell__epilogue		                # jump to reveal_cell_epilogue
+        j	reveal_cell__epilogue                           # jump to reveal_cell_epilogue
 
 reveal_cell__gamestate___end:
         lw      $t1, cells_left                                 # load cells_left;
@@ -678,7 +678,7 @@ update_highscore__store___name:
 
         # checks after to adding because then it is able to add '\0' to high_score.
         beqz    $t1, update_highscore__epilogue                 # if the value in username == 0, then it has hit '\0' the NULL character
-        j	update_highscore__store___name                  # jump back to the loop to add the remaining characters.
+        j       update_highscore__store___name                  # jump back to the loop to add the remaining characters.
 
 update_highscore__epilogue:
         lw      $s1, 12($sp)
@@ -770,8 +770,8 @@ print_scores__score___banner:
         jr      $ra
 
 print_scores__new___line:
-        li   $a0, '\n'    
-        li   $v0, 11
+        li      $a0, '\n'    
+        li      $v0, 11
         syscall                                                 # printf("%c", '\n');
 
         jr      $ra
