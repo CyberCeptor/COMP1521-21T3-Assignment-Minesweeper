@@ -210,13 +210,15 @@ place_bombs:
         #   - $a1: int bad_col
         # Returns: void
         #
-        # Frame:    $ra, [$a0, $a1, $s0, $s1]
-        # Uses:     [$a0, $a1, $s0, $s1]
+        # Frame:    $ra, [$a0, $a1, $s0, $s1, $s2, $s3]
+        # Uses:     [$a0, $a1, $s0, $s1, $s2, $s3]
         # Clobbers: [nothing]
         #
         # Locals:
         #   - ['bomb count' in $s0]
         #   - 'i' in $s1
+        #   - '$s2' to hold a copy of $a0
+        #   - '$s3' to hold a copy of $a1 
         #
         # Structure:
         #   place_bombs
@@ -225,12 +227,17 @@ place_bombs:
         #   -> [epilogue]
 
 place_bombs__prologue:
-        addiu   $sp, $sp, -20
+        addiu   $sp, $sp, -28
         sw      $ra, 0($sp)
         sw      $a0, 4($sp)
         sw      $a1, 8($sp)
         sw      $s0, 12($sp)
         sw      $s1, 16($sp)
+        sw      $s2, 20($sp)                                    # save $s2 in stack so it can hold $a0 as a backup
+        sw      $s3, 24($sp)                                    # save $s3 in stack so it can hold $a1 as a backup
+
+        move    $s2, $a0                                        # make a copy of $a0 in $s2 as a backup after it is clobbered.
+        move    $s3, $a1                                        # make a copy of $a1 in $s3 as a backup after it is clobbered.
 
         lw      $s0, bomb_count                                 # count of the bomb total.
         li      $s1, 0                                          # i = 0;  counter for the loop. 
@@ -240,20 +247,22 @@ place_bombs__body:
 
         jal     place_single_bomb                               # Jump and Link to the place_single_bomb function
 
-        lw      $a0, 4($sp)                                     #restoring the $a0, after the Place_Single_Bomb function has clobbered it. 
-        lw      $a1, 8($sp)                                     # restoring the $a1, after the is_bad_cell (called by the BOMB function) has clobbered it. 
+        move    $a0, $s2                                        # restore $a0 to original Arg value. Place_Single_Bomb function clobbers it.
+        move    $a1, $s3                                        # restore $a1 to original Arg value. is_bad_cell(caleed by BOMB) function clobbers it.
  
         addi    $s1, $s1, 1                                     # i++; increment of the loop counter
 
         j       place_bombs__body                               # jump to place_bombs__body
 
 place_bombs__epilogue:
+        lw      $s3, 24($sp)
+        lw      $s2, 20($sp)
         lw      $s1, 16($sp)
         lw      $s0, 12($sp)
         lw      $a1, 8($sp)
         lw      $a0, 4($sp)   
         lw      $ra, 0($sp)
-        addiu   $sp, $sp, 20
+        addiu   $sp, $sp, 28
 
         jr      $ra
 
@@ -490,7 +499,7 @@ reveal_cell__cell___marked:
         li      $v0, 4
         syscall                                                 # printf("Cannot reveal a marked cell.\n");
 
-        j	reveal_cell__epilogue                           # jump to reveal_cell_epilogue
+        j       reveal_cell__epilogue                           # jump to reveal_cell_epilogue
 
 reveal_cell__gamestate___end:
         lw      $t1, cells_left                                 # load cells_left;
@@ -663,7 +672,7 @@ update_highscore__body:
         blt     $t0, $a0, update_highscore__new___highscore     # if high_score.score < score
 
         li      $v0, 0                                          # return FALSE; set to zero because its not a new high score
-        j	update_highscore__epilogue
+        j       update_highscore__epilogue
         
 update_highscore__new___highscore:
         sw      $a0, high_score                                 # save the new high score
