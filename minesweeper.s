@@ -121,13 +121,13 @@ scores_score_msg:
 # Implement the following 7 functions,
 # and check these boxes as you finish implementing each function
 #
-#  - [ ] reveal_grid        - subset 0
-#  - [ ] place_bombs        - subset 1
-#  - [ ] mark_cell          - subset 2
-#  - [ ] reveal_cell        - subset 3
-#  - [ ] clear_surroundings - subset 3
-#  - [ ] update_highscore   - subset 4
-#  - [ ] print_scores       - subset 4
+#  - [x] reveal_grid        - subset 0
+#  - [x] place_bombs        - subset 1
+#  - [x] mark_cell          - subset 2
+#  - [x] reveal_cell        - subset 3
+#  - [x] clear_surroundings - subset 3
+#  - [x] update_highscore   - subset 4
+#  - [x] print_scores       - subset 4
 #
 ########################################################################
 
@@ -165,8 +165,8 @@ reveal_grid:
 
 reveal_grid__prologue:
         addiu   $sp, $sp, -8                                    # allocating memory to store on the stack. 
-        sw      $ra, 0($sp)                                     # saving $ra to the stack.
-        sw      $s0, 4($sp)                                     # saving $s0 to the stack. 
+        sw      $ra, 0($sp)                                     # storing $ra to the stack.
+        sw      $s0, 4($sp)                                     # storing $s0 to the stack. 
 
         la      $s0, grid                                       #  contains the start address of the array 'grid'. stored as bytes, alignment 2.
         li      $t0, 0                                          #  i = 0; ROW INDEX  Row Counter
@@ -534,6 +534,7 @@ clear_surroundings:
         # Clobbers: [$t0, $t1, $t2, $t3]
         #
         # Locals:
+        #   - grid address in $s0
         #   - ['grid[row][col]address' in $t1]
         #   - grid[row][col]value in $t2
         #   - $t0 misc.
@@ -648,6 +649,8 @@ update_highscore:
         # Locals:
         #   - ['high_score' in $t0]
         #   - 'user_name character' in $t1
+        #   - high_score address in $s0
+        #   - user_name address in $s1
         #
         # Structure:
         #   update_highscore
@@ -681,13 +684,13 @@ update_highscore__new___highscore:
 # source for loop: https://stackoverflow.com/questions/39905397/how-to-load-string-line-by-line-in-mips-into-memory
 update_highscore__store___name:
         lb      $t1, 0($s1)                                     # load the value (character) of the user_name
-        sb      $t1, 4($s0)                                     # store the character into high_score
+        sb      $t1, 4($s0)                                     # store the character into high_score 4 bytes after the scores
         addi    $s0, $s0, 1                                     # increment the address of high_score
         addi    $s1, $s1, 1                                     # increment the address of the username
 
-        # checks after to adding because then it is able to add '\0' to high_score.
-        beqz    $t1, update_highscore__epilogue                 # if the value in username == 0, then it has hit '\0' the NULL character
-        j       update_highscore__store___name                  # jump back to the loop to add the remaining characters.
+        # checks after adding because then it can add '\0' to high_score to indicate the end of the string/username.
+        beqz    $t1, update_highscore__epilogue                 # if the value in username == 0, then it has hit '\0' the NULL character, end the loop.
+        j       update_highscore__store___name                  # if not, jump back to the loop to add the remaining characters.
 
 update_highscore__epilogue:
         lw      $s1, 12($sp)
@@ -745,17 +748,18 @@ print_scores__body:
         jal     print_scores__dotted___line                     # prints '---...'
         jal     print_scores__username___banner                 # prints "USERNAME:"	
 
-        add     $t3, $t0, 4                                     # name = offset + 4. (the address of the name in scores.
+        # offset + 4 because the name is stored 4 bytes after the score.
+        add     $t3, $t0, 4                                     # name = offset + 4. (the address of the name in scores).
         la      $a0, scores($t3)                                # $a0 = scores[i].name;  
         li      $v0, 4                  
-        syscall                                                 # printf("%s", curr.name);
+        syscall                                                 # printf("%s", scores[i].name);
 
         jal     print_scores__new___line                        # prints '\n'
         jal     print_scores__score___banner                    # prints "SCORE:"
 
         move    $a0, $t2                                        # $a0 = scores[i].score;
         li      $v0, 1                  
-        syscall                                                 # printf("%d", curr.score);
+        syscall                                                 # printf("%d", scores[i].score);
 
         jal     print_scores__new___line                        # prints '\n'
 
